@@ -11,7 +11,7 @@ pipeline {
         // The 'pi-ssh-key' credential must be configured in Jenkins as an
         // SSH Username with private key credential.
         PI_USER        = 'zrice'
-        PI_HOST        = 'raspberrypi.local'
+        PI_HOST        = '10.64.32.100'
         PI_DEPLOY_PATH = '/opt/raspi-muthur-ui'
         SERVICE_NAME   = 'raspi-muthur-ui'
     }
