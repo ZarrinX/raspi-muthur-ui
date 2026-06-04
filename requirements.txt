@@ -1,0 +1,4 @@
+adafruit-blinka>=8.0.0
+adafruit-circuitpython-rgb-display>=3.12.0
+Pillow>=10.0.0
+psutil>=5.9.0

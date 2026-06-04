@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Font files are typically licensed — add manually to the Pi
+assets/fonts/*.ttf
+assets/fonts/*.woff
+assets/fonts/*.woff2
