@@ -25,9 +25,10 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sshagent(credentials: ['pi-ssh-key']) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'pi-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh '''
                         rsync -avz --delete \
+                            -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
                             --exclude='.git' \
                             --exclude='venv' \
                             --exclude='__pycache__' \
@@ -40,9 +41,9 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sshagent(credentials: ['pi-ssh-key']) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'pi-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                        ssh ${PI_USER}@${PI_HOST} '
+                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST} '
                             cd ${PI_DEPLOY_PATH} &&
                             python3 -m venv venv &&
                             venv/bin/pip install --upgrade pip --quiet &&
@@ -58,8 +59,8 @@ pipeline {
                 // Requires passwordless sudo for systemctl restart on the Pi.
                 // Add to /etc/sudoers on the Pi:
                 //   zrice ALL=(ALL) NOPASSWD: /bin/systemctl restart raspi-muthur-ui
-                sshagent(credentials: ['pi-ssh-key']) {
-                    sh "ssh ${PI_USER}@${PI_HOST} 'sudo systemctl restart ${SERVICE_NAME}'"
+                withCredentials([sshUserPrivateKey(credentialsId: 'pi-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    sh "ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST} 'sudo systemctl restart ${SERVICE_NAME}'"
                 }
             }
         }
