@@ -43,6 +43,6 @@ def get_display() -> ili9341.ILI9341:
         baudrate=BAUDRATE,
         width=DISPLAY_WIDTH,
         height=DISPLAY_HEIGHT,
-        rotation=0,  # portrait — adjust if display is physically rotated
+        rotation=180,  # portrait, rotated 180° — display is mounted upside down
     )
     return display

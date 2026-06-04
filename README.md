@@ -2,7 +2,7 @@
 
 Proof-of-concept project demonstrating a Waveshare 2.4" ILI9341 SPI TFT display connected to a Raspberry Pi 5 running Debian 12 (Bookworm).
 
-The project was developed as a hardware validation platform and UI experimentation environment for future dashboards, command consoles, and diagnostic interfaces.
+The project was developed as a hardware validation platform and foundation for MU/TH/UR-inspired dashboard interfaces.
 
 ---
 
@@ -11,7 +11,6 @@ The project was developed as a hardware validation platform and UI experimentati
 - Verify Raspberry Pi 5 SPI operation
 - Verify compatibility with Waveshare ILI9341 displays
 - Evaluate Python graphics libraries
-- Prototype LCARS-inspired interfaces
 - Prototype MU/TH/UR-inspired interfaces
 - Develop a foundation for future dashboard applications
 
@@ -202,7 +201,6 @@ Backlight testing confirmed that the issue is not related to display illuminatio
 
 The proof-of-concept dashboard successfully demonstrated:
 
-- Picard-inspired LCARS color schemes
 - MU/TH/UR-inspired visual elements
 - Animated status indicators
 - CPU utilization
@@ -218,14 +216,11 @@ The proof-of-concept dashboard successfully demonstrated:
 Potential applications include:
 
 - ZR Operations Console
-- MU/TH/UR-inspired terminal interface
+- MU/TH/UR terminal interface
 - Electronics lab dashboard
 - LoRa telemetry monitor
 - ESP32 project monitor
 - Raspberry Pi system monitor
-- Starfleet-style operations console
-- Workshop status display
-- Home automation dashboard
 
 ---
 
