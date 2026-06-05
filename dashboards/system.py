@@ -148,16 +148,23 @@ def _render() -> None:
     _draw_centered(d, "MU/TH/UR", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
 
     # Telemetry rows
-    temp_val = cpu_temp()
+    temp_c   = cpu_temp()
+    temp_f   = (temp_c * 9 / 5 + 32) if temp_c is not None else None
+    cpu_val  = cpu_percent()
+    ram_val  = ram_percent()
+    disk_val = disk_percent()
     rows = [
-        ("CPU",  f"{cpu_percent():.1f}%",                               "cpu"),
-        ("RAM",  f"{ram_percent():.1f}%",                               "ram"),
-        ("DISK", f"{disk_percent():.1f}%",                              "disk"),
-        ("TEMP", f"{temp_val:.1f}C" if temp_val is not None else "N/A", "temp"),
-        ("IP",   ip_address(),                                          "ip"),
+        ("CPU",  f"{cpu_val:.1f}%",                                "cpu",  cpu_val),
+        ("RAM",  f"{ram_val:.1f}%",                                "ram",  ram_val),
+        ("DISK", f"{disk_val:.1f}%",                               "disk", None),
+        ("TEMP", f"{temp_f:.1f}F" if temp_f is not None else "N/A", "temp", None),
+        ("IP",   ip_address(),                                     "ip",   None),
     ]
 
-    for i, (label, value, key) in enumerate(rows):
+    _BAR_H    = 4   # bar graph height in pixels
+    _BAR_PAD  = 5   # gap between bottom of text and top of bar
+
+    for i, (label, value, key, bar_pct) in enumerate(rows):
         row_y  = _HEADER_H + i * _ROW_H
         row_y2 = row_y + _ROW_H
 
@@ -168,26 +175,45 @@ def _render() -> None:
         # Row separator
         d.line([(0, row_y2 - 1), (_W - 1, row_y2 - 1)], fill=_BORDER, width=1)
 
-        # Label — left edge, vertically centred
+        # Vertical text area — shift up when bar is present
+        text_h    = _ROW_H - (_BAR_H + _BAR_PAD + 4 if bar_pct is not None else 0)
+
+        # Label — left edge, vertically centred in text area
         lbbox = d.textbbox((0, 0), label, font=_FONT_LABEL)
         lh    = lbbox[3] - lbbox[1]
-        ly    = row_y + (_ROW_H - lh) // 2
+        ly    = row_y + (text_h - lh) // 2
         d.text((_LABEL_X, ly), label, font=_FONT_LABEL, fill=_TEXT_SECONDARY)
 
-        # Value — right-aligned, vertically centred
+        # Value — right-aligned, vertically centred in text area
         vbbox = d.textbbox((0, 0), value, font=_FONT_VALUE)
         vw    = vbbox[2] - vbbox[0]
         vh    = vbbox[3] - vbbox[1]
         vx    = _VALUE_RIGHT - vw
-        vy    = row_y + (_ROW_H - vh) // 2
+        vy    = row_y + (text_h - vh) // 2
         d.text((vx, vy), value, font=_FONT_VALUE, fill=_value_color(key, value))
+
+        # Bar graph (CPU and RAM only)
+        if bar_pct is not None:
+            bar_y      = row_y2 - _BAR_H - 4
+            bar_x1     = _LABEL_X
+            bar_x2     = _VALUE_RIGHT
+            bar_width  = bar_x2 - bar_x1
+            fill_width = int(bar_width * min(bar_pct, 100.0) / 100.0)
+            # Track
+            d.rectangle([(bar_x1, bar_y), (bar_x2, bar_y + _BAR_H - 1)], fill=_BORDER)
+            # Fill
+            if fill_width > 0:
+                d.rectangle(
+                    [(bar_x1, bar_y), (bar_x1 + fill_width, bar_y + _BAR_H - 1)],
+                    fill=_value_color(key, value),
+                )
 
     # Footer
     footer_y = _HEADER_H + _ROW_COUNT * _ROW_H
     d.rectangle([(0, footer_y), (_W - 1, _H - 1)], fill=_SURFACE)
     d.line([(0, footer_y), (_W - 1, footer_y)], fill=_BORDER, width=1)
     time_str = datetime.datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
-    _draw_centered(d, time_str, footer_y, _H, _FONT_FOOTER, _TEXT_DIM)
+    _draw_centered(d, time_str, footer_y, _H, _FONT_FOOTER, _ACCENT)
 
 
 def _draw_centered(
@@ -214,9 +240,10 @@ def _value_color(key: str, text: str) -> tuple[int, int, int]:
         if val >= 75:
             return _WARNING
     if key == "temp" and val is not None:
-        if val >= 80:
+        # thresholds in Fahrenheit
+        if val >= 176:
             return _ERROR
-        if val >= 65:
+        if val >= 149:
             return _WARNING
     return _TEXT_PRIMARY
 
