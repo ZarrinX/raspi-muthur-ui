@@ -364,6 +364,26 @@ baudrate=16000000
 
 ---
 
+## Partial Image Push — Correct Parameter Names
+
+When pushing a sub-image to the display using the Adafruit RGB Display library, use `x=` and `y=`, not `x0=` and `y0=`.
+
+Correct:
+
+```python
+display.image(region_img, x=x1, y=y1)
+```
+
+Incorrect (silently draws nothing):
+
+```python
+display.image(region_img, x0=x1, y0=y1)
+```
+
+`x0`/`y0` are not valid keyword arguments — the call succeeds without error but the region is never updated on screen.
+
+---
+
 # Future Development Recommendations
 
 Priority order:

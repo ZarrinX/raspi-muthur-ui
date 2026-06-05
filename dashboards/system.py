@@ -207,7 +207,7 @@ def _repaint_value(key: str, text: str) -> None:
 
     # Partial push — only this sub-image
     region_img = _image.crop((x1, y1, x2 + 1, y2 + 1))
-    _display.image(region_img, x0=x1, y0=y1)
+    _display.image(region_img, x=x1, y=y1)
 
 
 def _draw_centered(
