@@ -10,10 +10,11 @@ pipeline {
         // Update these to match the Pi's hostname/IP and deploy user.
         // The 'pi-ssh-key' credential must be configured in Jenkins as an
         // SSH Username with private key credential.
-        PI_USER        = 'zrice'
-        PI_HOST        = '10.64.32.100'
-        PI_DEPLOY_PATH = '/opt/raspi-muthur-ui'
-        SERVICE_NAME   = 'raspi-muthur-ui'
+        PI_USER           = 'zrice'
+        PI_HOST           = '10.64.32.100'
+        PI_DEPLOY_PATH    = '/opt/raspi-muthur-ui'
+        SERVICE_NAME      = 'raspi-muthur-ui'
+        SERVICE_NETWORK   = 'raspi-muthur-ui-network'
     }
 
     stages {
@@ -54,13 +55,30 @@ pipeline {
             }
         }
 
-        stage('Restart Service') {
+        stage('Install Service Units') {
             steps {
-                // Requires passwordless sudo for systemctl restart on the Pi.
+                // Copy both service unit files to systemd and reload the daemon.
+                // Requires passwordless sudo for the commands below on the Pi.
                 // Add to /etc/sudoers on the Pi:
-                //   zrice ALL=(ALL) NOPASSWD: /bin/systemctl restart raspi-muthur-ui
+                //   zrice ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload, /bin/systemctl enable *, /bin/systemctl restart *
                 withCredentials([sshUserPrivateKey(credentialsId: 'pi-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                    sh "ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST} 'sudo systemctl restart ${SERVICE_NAME}'"
+                    sh """
+                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST} '
+                            sudo cp ${PI_DEPLOY_PATH}/${SERVICE_NAME}.service /etc/systemd/system/ &&
+                            sudo cp ${PI_DEPLOY_PATH}/${SERVICE_NETWORK}.service /etc/systemd/system/ &&
+                            sudo systemctl daemon-reload &&
+                            sudo systemctl enable ${SERVICE_NAME} &&
+                            sudo systemctl enable ${SERVICE_NETWORK}
+                        '
+                    """
+                }
+            }
+        }
+
+        stage('Restart Services') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'pi-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    sh "ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST} 'sudo systemctl restart ${SERVICE_NAME} && sudo systemctl restart ${SERVICE_NETWORK}'"
                 }
             }
         }

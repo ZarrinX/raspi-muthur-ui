@@ -1,0 +1,16 @@
+[Unit]
+Description=raspi-muthur-ui — HD44780 network I/O monitor
+After=network.target
+
+[Service]
+Type=simple
+User=zrice
+WorkingDirectory=/opt/raspi-muthur-ui
+ExecStart=/opt/raspi-muthur-ui/venv/bin/python -m dashboards.network
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
