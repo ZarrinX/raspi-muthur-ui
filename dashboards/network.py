@@ -24,9 +24,11 @@ TICK_INTERVAL_S: float = 2.0
 def _format_mb(value: float) -> str:
     """Format a Megabit value to fit in 16 columns alongside the label.
 
-    Label is 6 chars ("Sent: " / "Recv: "), value field is 7 chars
-    ("{value:.2f}"), unit is 3 chars (" Mb") → 6 + 7 + 3 = 16 total.
+    Label is 5 chars ("Sent:" / "Recv:"), value+unit field is 11 chars.
+    Auto-scales to Gb when value >= 1000 Mb.
     """
+    if value >= 1000.0:
+        return f"{value / 1000:7.2f} Gb"
     return f"{value:7.2f} Mb"
 
 
