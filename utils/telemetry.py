@@ -46,6 +46,19 @@ def ip_address() -> str:
         return "unavailable"
 
 
+def net_io_total_mb() -> tuple[float, float]:
+    """Return (sent_mb, recv_mb) as cumulative Megabits since boot.
+
+    1 Mb = 1,000,000 bits = 125,000 bytes.
+    """
+    counters = psutil.net_io_counters()
+    if counters is None:
+        raise RuntimeError("psutil.net_io_counters() returned None — no network interfaces found")
+    sent_mb = counters.bytes_sent * 8 / 1_000_000
+    recv_mb = counters.bytes_recv * 8 / 1_000_000
+    return sent_mb, recv_mb
+
+
 # Module-level state for net_io_delta_mb.
 _last_net_bytes_sent: int | None = None
 _last_net_bytes_recv: int | None = None

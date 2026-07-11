@@ -258,6 +258,74 @@ Successful contributions should:
 - Improve user experience
 - Reduce display flicker
 - Preserve verified hardware functionality
+
+---
+
+# Deployment
+
+## Overview
+
+This project is deployed to the Raspberry Pi via a Jenkins pipeline defined in `Jenkinsfile`.
+
+Do not suggest manual deployment steps as a permanent solution. All changes that affect runtime behaviour must be reflected in the `Jenkinsfile`.
+
+## Deploy target
+
+```
+User:  zrice
+Host:  10.64.32.100
+Path:  /opt/raspi-muthur-ui
+```
+
+## Pipeline stages
+
+1. **Checkout** — checks out the repo from GitHub
+2. **Deploy** — rsyncs the workspace to the Pi (excludes `.git`, `venv`, `__pycache__`, `*.pyc`)
+3. **Install Dependencies** — creates/updates the venv at `/opt/raspi-muthur-ui/venv/` and runs `pip install -r requirements.txt`
+4. **Install Service Units** — copies `.service` files to `/etc/systemd/system/`, runs `daemon-reload` and `enable`
+5. **Restart Services** — restarts all managed systemd services
+
+## Python environment
+
+The Pi uses a venv at `/opt/raspi-muthur-ui/venv/`.
+
+All new dependencies must be added to `requirements.txt`. Do not assume system-wide packages are available.
+
+## Systemd services
+
+Each long-running process gets its own `.service` file in the repo root, following the naming pattern `raspi-muthur-ui-<name>.service`.
+
+Current services:
+
+| File | ExecStart | Purpose |
+|------|-----------|---------|
+| `raspi-muthur-ui.service` | `venv/bin/python main.py` | ILI9341 SPI telemetry dashboard |
+| `raspi-muthur-ui-network.service` | `venv/bin/python -m dashboards.network` | HD44780 I2C network monitor |
+
+When adding a new long-running dashboard or process:
+
+1. Create a `raspi-muthur-ui-<name>.service` file using the existing files as a template.
+2. Add a `SERVICE_<NAME>` environment variable in the `Jenkinsfile` `environment` block.
+3. Add the new service to the `Install Service Units` and `Restart Services` stages in `Jenkinsfile`.
+
+## sudoers
+
+The deploy user `zrice` has the following passwordless sudo permission on the Pi:
+
+```
+zrice   ALL=(ALL) NOPASSWD: /bin/systemctl *
+```
+
+This covers `daemon-reload`, `enable`, and `restart` as used by the pipeline.
+
+## Logs
+
+Service logs are written to the systemd journal. To tail logs on the Pi:
+
+```bash
+journalctl -u raspi-muthur-ui -f
+journalctl -u raspi-muthur-ui-network -f
+```
 - Support future ZR-branded interfaces
 - Support future LCARS and MU/TH/UR-inspired dashboards
 

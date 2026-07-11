@@ -16,7 +16,7 @@ import sys
 import time
 
 from displays.hd44780 import HD44780I2C
-from utils.telemetry import net_io_delta_mb
+from utils.telemetry import net_io_total_mb
 
 TICK_INTERVAL_S: float = 2.0
 
@@ -38,16 +38,6 @@ def run(
     """Start the network monitor loop. Blocks until KeyboardInterrupt."""
     lcd = HD44780I2C(bus=bus, address=address)
 
-    # Seed the counter baseline so the first real tick shows a delta,
-    # not the entire cumulative traffic since boot.
-    try:
-        net_io_delta_mb()
-    except Exception as exc:
-        lcd.write_line(0, "Seed error:")
-        lcd.write_line(1, str(exc)[:16])
-        print(f"[ERROR] Failed to seed net counters: {exc}")
-        raise
-
     print(
         f"Network monitor running on I2C bus {bus}, address {hex(address)}. "
         f"Updating every {tick_interval}s. Press Ctrl+C to stop."
@@ -56,7 +46,7 @@ def run(
     try:
         while True:
             try:
-                sent_mb, recv_mb = net_io_delta_mb()
+                sent_mb, recv_mb = net_io_total_mb()
                 lcd.write_line(0, "Sent:" + _format_mb(sent_mb))
                 lcd.write_line(1, "Recv:" + _format_mb(recv_mb))
             except Exception as exc:
