@@ -61,6 +61,8 @@ def net_io_delta_mb() -> tuple[float, float]:
     global _last_net_bytes_sent, _last_net_bytes_recv
 
     counters = psutil.net_io_counters()
+    if counters is None:
+        raise RuntimeError("psutil.net_io_counters() returned None — no network interfaces found")
     current_sent = counters.bytes_sent
     current_recv = counters.bytes_recv
 
