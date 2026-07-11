@@ -33,7 +33,7 @@ class HD44780I2C:
         address: int = 0x27,
         cols: int = 16,
         rows: int = 2,
-        backlight_active_low: bool = True,
+        backlight_active_low: bool = False,
     ) -> None:
         self.bus = SMBus(bus)
         self.address = address
