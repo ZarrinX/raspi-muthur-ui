@@ -15,10 +15,20 @@ from __future__ import annotations
 import sys
 import time
 
+try:
+    import lgpio as _lgpio
+    _LGPIO_AVAILABLE = True
+except ImportError:
+    _lgpio = None  # type: ignore[assignment]
+    _LGPIO_AVAILABLE = False
+
 from displays.hd44780 import HD44780I2C
 from utils.telemetry import net_io_total_mb
 
 TICK_INTERVAL_S: float = 2.0
+BUTTON_GPIO: int = 26
+DEBOUNCE_S: float = 0.05   # 50 ms
+BUTTON_POLL_S: float = 0.02  # 20 ms poll interval within each tick
 
 
 def _format_mb(value: float) -> str:
@@ -32,6 +42,25 @@ def _format_mb(value: float) -> str:
     return f"{value:7.2f} Mb"
 
 
+def _setup_button() -> tuple[object | None, int | None]:
+    """Open the lgpio chip and claim GPIO *BUTTON_GPIO* as an input with pull-up.
+
+    Returns ``(chip_handle, gpio_pin)`` on success, or ``(None, None)`` when
+    lgpio is unavailable so the rest of the dashboard still runs.
+    """
+    if not _LGPIO_AVAILABLE:
+        print("[WARN] lgpio not available — button support disabled.")
+        return None, None
+    try:
+        h = _lgpio.gpiochip_open(0)
+        _lgpio.gpio_claim_input(h, BUTTON_GPIO, _lgpio.SET_PULL_UP)
+        print(f"Button configured on GPIO {BUTTON_GPIO} (pull-up).")
+        return h, BUTTON_GPIO
+    except Exception as exc:
+        print(f"[WARN] Could not configure button GPIO {BUTTON_GPIO}: {exc}")
+        return None, None
+
+
 def run(
     bus: int = 1,
     address: int = 0x27,
@@ -39,6 +68,12 @@ def run(
 ) -> None:
     """Start the network monitor loop. Blocks until KeyboardInterrupt."""
     lcd = HD44780I2C(bus=bus, address=address)
+    chip, btn_pin = _setup_button()
+
+    # Debounce state
+    _last_raw: int = 1          # last sampled pin level (1 = released)
+    _stable_level: int = 1      # last debounced level
+    _last_change_time: float = 0.0
 
     print(
         f"Network monitor running on I2C bus {bus}, address {hex(address)}. "
@@ -46,19 +81,49 @@ def run(
     )
 
     try:
+        next_update = time.monotonic()
         while True:
-            try:
-                sent_mb, recv_mb = net_io_total_mb()
-                lcd.write_line(0, "Sent:" + _format_mb(sent_mb))
-                lcd.write_line(1, "Recv:" + _format_mb(recv_mb))
-            except Exception as exc:
-                print(f"[ERROR] {exc}")
-                lcd.write_line(0, "Error:")
-                lcd.write_line(1, str(exc)[:16])
-            time.sleep(tick_interval)
+            now = time.monotonic()
+
+            # --- button poll & debounce ---
+            if chip is not None and btn_pin is not None:
+                try:
+                    raw = _lgpio.gpio_read(chip, btn_pin)
+                except Exception:
+                    raw = _last_raw
+
+                if raw != _last_raw:
+                    _last_raw = raw
+                    _last_change_time = now
+
+                # Signal is stable when it hasn't changed for DEBOUNCE_S
+                if (now - _last_change_time) >= DEBOUNCE_S and _last_raw != _stable_level:
+                    _stable_level = _last_raw
+                    if _stable_level == 0:  # active-low: 0 means pressed
+                        lcd.toggle_backlight()
+
+            # --- display update ---
+            if now >= next_update:
+                next_update = now + tick_interval
+                try:
+                    sent_mb, recv_mb = net_io_total_mb()
+                    lcd.write_line(0, "Sent:" + _format_mb(sent_mb))
+                    lcd.write_line(1, "Recv:" + _format_mb(recv_mb))
+                except Exception as exc:
+                    print(f"[ERROR] {exc}")
+                    lcd.write_line(0, "Error:")
+                    lcd.write_line(1, str(exc)[:16])
+
+            time.sleep(BUTTON_POLL_S)
+
     except KeyboardInterrupt:
         print("\nShutting down.")
     finally:
+        if chip is not None:
+            try:
+                _lgpio.gpiochip_close(chip)
+            except Exception:
+                pass
         lcd.close()
 
 

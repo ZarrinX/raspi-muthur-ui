@@ -80,6 +80,11 @@ class HD44780I2C:
     def write_char(self, value: int) -> None:
         self._send(value, mode=self.pins["rs"])
 
+    def toggle_backlight(self) -> None:
+        """Toggle the backlight on or off and immediately update the display."""
+        self.backlight = not self.backlight
+        self._write_byte(0x00)
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
