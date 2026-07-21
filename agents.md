@@ -398,6 +398,23 @@ Priority order:
 
 ---
 
+# Deployment
+
+This project deploys to two Raspberry Pis via Jenkins SSH pipelines.
+
+| Branch | Pi | Host | Jenkinsfile |
+|--------|----|------|-------------|
+| `main` | Pi 1 | 10.64.32.100 | `Jenkinsfile` |
+| `TARS` | Pi 2 | 10.64.32.101 | `Jenkinsfile.tars` → renamed to `Jenkinsfile` on that branch |
+
+Both Pis use deploy user `zrice`, path `/opt/raspi-muthur-ui`, and SSH credential `pi-ssh-key`.
+
+Hardware is identical across both Pis. UI and dashboards may differ between branches.
+
+Shared hardware changes (drivers, wiring, service templates) should be merged into both branches.
+
+---
+
 # Project Status
 
 Hardware validated.
@@ -406,4 +423,4 @@ Software stack validated.
 
 Display operational.
 
-Ready for application-specific development.
+Two-Pi deployment configured. Ready for branch-specific UI development.
