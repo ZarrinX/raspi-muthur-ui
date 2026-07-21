@@ -3,7 +3,7 @@ System telemetry dashboard for the 240×320 ILI9341 display.
 
 Layout (portrait, 240×320):
     ┌──────────────────────────┐  y=0
-    │         MU/TH/UR        │  header (28px)
+    │           TARS          │  header (28px)
     ├──────────────────────────┤  y=28
     │  CPU            25.4%   │  row (52px each × 5)
     ├──────────────────────────┤
@@ -39,16 +39,16 @@ if TYPE_CHECKING:
     import adafruit_rgb_display.ili9341 as ili9341_type
 
 # ---------------------------------------------------------------------------
-# Palette — muthur-ui/packages/ui/src/styles/global.css
+# Palette — TARS blue variant
 # ---------------------------------------------------------------------------
-_BG             = (  4,  12,   4)
-_SURFACE        = (  7,  17,  10)
-_BORDER         = ( 15,  34,  20)
-_BORDER_BRIGHT  = ( 27,  66,  38)
-_TEXT_PRIMARY   = (200, 224, 200)
-_TEXT_SECONDARY = (106, 154, 106)
-_TEXT_DIM       = ( 42,  74,  42)
-_ACCENT         = (126, 198, 126)
+_BG             = (  4,   8,  18)
+_SURFACE        = (  7,  14,  30)
+_BORDER         = ( 15,  30,  60)
+_BORDER_BRIGHT  = ( 27,  60, 120)
+_TEXT_PRIMARY   = (200, 215, 240)
+_TEXT_SECONDARY = ( 90, 140, 210)
+_TEXT_DIM       = ( 36,  60, 100)
+_ACCENT         = ( 80, 160, 255)
 _WARNING        = (232, 200,  74)
 _ERROR          = (212,  80,  80)
 
@@ -145,7 +145,7 @@ def _render() -> None:
     # Header
     d.rectangle([(0, 0), (_W - 1, _HEADER_H - 1)], fill=_SURFACE)
     d.line([(0, _HEADER_H - 1), (_W - 1, _HEADER_H - 1)], fill=_BORDER_BRIGHT, width=1)
-    _draw_centered(d, "MU/TH/UR", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
+    _draw_centered(d, "TARS", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
 
     # Telemetry rows
     temp_c   = cpu_temp()
