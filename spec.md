@@ -25,6 +25,34 @@
 | BL | 3.3V |
 | MISO | Optional / Not Required |
 
+---
+
+## KY-040 Rotary Encoder Wiring
+
+| Encoder Pin | Raspberry Pi 5 | Notes |
+|-------------|----------------|-------|
+| VCC (+) | 3.3V | |
+| GND | GND | |
+| CLK (A) | GPIO17 (Pin 11) | Rotary pulse A |
+| DT (B) | GPIO27 (Pin 13) | Rotary pulse B |
+| SW | GPIO22 (Pin 15) | Push button |
+
+### Pin Conflict Check
+
+All encoder pins are separate from the ILI9341 display:
+
+| GPIO | Pin | Display Use |
+|------|-----|-------------|
+| GPIO10 | 19 | MOSI (SPI) |
+| GPIO11 | 23 | SCLK (SPI) |
+| GPIO5 | 29 | CS |
+| GPIO25 | 22 | DC |
+| GPIO24 | 18 | RST |
+
+No conflicts with GPIO17 (11), GPIO27 (13), or GPIO22 (15).
+
+---
+
 ### Important Note
 
 The display CS line was originally connected to:
