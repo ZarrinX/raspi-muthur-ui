@@ -7,11 +7,8 @@ pipeline {
     }
 
     environment {
-        // Update these to match the Pi's hostname/IP and deploy user.
-        // The 'pi-ssh-key' credential must be configured in Jenkins as an
-        // SSH Username with private key credential.
         PI_USER           = 'zrice'
-        PI_HOST           = '10.64.32.100'
+        PI_HOST           = '10.64.32.101'
         PI_DEPLOY_PATH    = '/opt/raspi-muthur-ui'
         SERVICE_NAME      = 'raspi-muthur-ui'
         SERVICE_NETWORK   = 'raspi-muthur-ui-network'
@@ -86,10 +83,10 @@ pipeline {
 
     post {
         failure {
-            echo 'Deployment failed — previous service version is still running.'
+            echo 'Deployment to TARS (10.64.32.101) failed — previous service version is still running.'
         }
         success {
-            echo 'raspi-muthur-ui deployed successfully.'
+            echo 'raspi-muthur-ui deployed successfully to TARS (10.64.32.101).'
         }
     }
 }
