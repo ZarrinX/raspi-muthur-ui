@@ -265,17 +265,26 @@ Successful contributions should:
 
 ## Overview
 
-This project is deployed to the Raspberry Pi via a Jenkins pipeline defined in `Jenkinsfile`.
+This project deploys to two Raspberry Pis via Jenkins SSH pipelines. Each Pi has its own git branch and its own Jenkins job. Hardware is consistent across both Pis; UI and dashboards may differ between branches.
 
-Do not suggest manual deployment steps as a permanent solution. All changes that affect runtime behaviour must be reflected in the `Jenkinsfile`.
+Do not suggest manual deployment steps as a permanent solution. All changes that affect runtime behaviour must be reflected in the appropriate `Jenkinsfile`.
 
-## Deploy target
+## Deploy targets
+
+| Branch | Pi | Host | Jenkinsfile |
+|--------|----|------|-------------|
+| `main` | Pi 1 | 10.64.32.100 | `Jenkinsfile` |
+| `TARS` | Pi 2 | 10.64.32.101 | `Jenkinsfile.tars` → renamed to `Jenkinsfile` on that branch |
+
+Both Pis use:
 
 ```
 User:  zrice
-Host:  10.64.32.100
 Path:  /opt/raspi-muthur-ui
+SSH credential: pi-ssh-key
 ```
+
+Shared hardware changes (drivers, wiring, service templates) should be merged into both branches. UI/dashboard changes can remain branch-specific.
 
 ## Pipeline stages
 
