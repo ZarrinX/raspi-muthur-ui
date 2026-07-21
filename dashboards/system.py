@@ -97,7 +97,7 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         return ImageFont.load_default()
 
 
-_FONT_HEADER = _load_font(15)
+_FONT_HEADER = _load_font(20)
 _FONT_LABEL  = _load_font(14)
 _FONT_VALUE  = _load_font(20)
 _FONT_FOOTER = _load_font(11)
@@ -145,7 +145,7 @@ def _render() -> None:
     # Header
     d.rectangle([(0, 0), (_W - 1, _HEADER_H - 1)], fill=_SURFACE)
     d.line([(0, _HEADER_H - 1), (_W - 1, _HEADER_H - 1)], fill=_BORDER_BRIGHT, width=1)
-    _draw_centered(d, "TARS", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
+    _draw_centered(d, "T.A.R.S.", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
 
     # Telemetry rows
     temp_c   = cpu_temp()
