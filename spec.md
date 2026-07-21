@@ -51,6 +51,8 @@ All encoder pins are separate from the ILI9341 display:
 
 No conflicts with GPIO17 (11), GPIO27 (13), or GPIO22 (15).
 
+---
+
 ### Important Note
 
 The display CS line was originally connected to:
