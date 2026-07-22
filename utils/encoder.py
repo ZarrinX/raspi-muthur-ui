@@ -37,20 +37,25 @@ class KY040:
     SW_GPIO  = 22
 
     def __init__(self) -> None:
-        self._delta = 0
-        self._lock  = threading.Lock()
+        self._delta   = 0
+        self._lock    = threading.Lock()
+        self._enc     = None  # type: ignore[assignment]
+        self._btn: Button | None = None
 
-        if _GPIOZERO_AVAILABLE:
+        if not _GPIOZERO_AVAILABLE:
+            print("[encoder] gpiozero not available — encoder disabled.")
+            return
+
+        try:
             self._enc = RotaryEncoder(self.CLK_GPIO, self.DT_GPIO)
             self._enc.when_rotated_clockwise        = self._on_cw
             self._enc.when_rotated_counter_clockwise = self._on_ccw
-            self._btn: Button | None = Button(
-                self.SW_GPIO, pull_up=True, bounce_time=0.05
-            )
-        else:
-            self._enc = None  # type: ignore[assignment]
+            self._btn = Button(self.SW_GPIO, pull_up=True, bounce_time=0.05)
+            print("[encoder] KY-040 ready.")
+        except Exception as exc:
+            print(f"[encoder] GPIO init failed ({exc}) — encoder disabled.")
+            self._enc = None
             self._btn = None
-            print("[encoder] gpiozero not available — encoder disabled.")
 
     # ------------------------------------------------------------------
     # Callbacks (called from gpiozero background thread)

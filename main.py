@@ -34,33 +34,39 @@ def main() -> None:
     display = get_display()
     print("Display initialised.")
 
-    encoder = KY040()
-    print("Encoder initialised.")
+    try:
+        encoder = KY040()
+    except Exception as exc:
+        print(f"[WARN] Encoder unavailable: {exc} — continuing without encoder.")
+        encoder = None
 
-    current_page = 0
+    current_page  = 0
+    _initialised  = set()   # tracks which page indices have been init'd
 
-    # Prime all dashboards with the display handle so each has its Image/Draw
-    # allocated.  Only the active page will be pushed each tick.
-    for i, dash in enumerate(_PAGES):
-        dash.init(display, page_info=(i + 1, _TOTAL_PAGES))
+    def _ensure_init(page_idx: int) -> None:
+        if page_idx not in _initialised:
+            _PAGES[page_idx].init(display, page_info=(page_idx + 1, _TOTAL_PAGES))
+            _initialised.add(page_idx)
 
-    # Push the first page
-    _PAGES[current_page].update(page_info=(current_page + 1, _TOTAL_PAGES))
+    _ensure_init(current_page)
     print(f"Static layout drawn. Ticking every {TICK_INTERVAL_S}s.")
 
     while True:
         try:
-            delta = encoder.pop_delta()
-            if delta != 0:
-                direction = 1 if delta > 0 else -1
-                current_page = (current_page + direction) % _TOTAL_PAGES
-                print(f"Page → {current_page + 1}/{_TOTAL_PAGES}")
+            if encoder is not None:
+                delta = encoder.pop_delta()
+                if delta != 0:
+                    direction = 1 if delta > 0 else -1
+                    current_page = (current_page + direction) % _TOTAL_PAGES
+                    print(f"Page → {current_page + 1}/{_TOTAL_PAGES}")
+                    _ensure_init(current_page)
 
             _PAGES[current_page].update(page_info=(current_page + 1, _TOTAL_PAGES))
 
         except KeyboardInterrupt:
             print("\nShutting down.")
-            encoder.close()
+            if encoder is not None:
+                encoder.close()
             sys.exit(0)
         except Exception as exc:
             print(f"[ERROR] {exc}", file=sys.stderr)
