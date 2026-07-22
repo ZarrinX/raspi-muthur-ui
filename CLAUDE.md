@@ -47,6 +47,32 @@ Assume:
 - ILI9341 controller
 - No touch support
 
+## Verified Wiring — ILI9341 Display
+
+| Display Pin | Raspberry Pi 5 |
+|------------|----------------|
+| VCC | 3.3V |
+| GND | GND |
+| DIN (MOSI) | GPIO10 (Pin 19) |
+| CLK (SCLK) | GPIO11 (Pin 23) |
+| CS | GPIO5 (Pin 29) |
+| DC | GPIO25 (Pin 22) |
+| RST | GPIO24 (Pin 18) |
+| BL | 3.3V |
+| MISO | Optional / Not Required |
+
+## Verified Wiring — KY-040 Rotary Encoder
+
+| Encoder Pin | Raspberry Pi 5 | Notes |
+|-------------|----------------|-------|
+| VCC (+) | 3.3V | |
+| GND | GND | |
+| CLK (A) | GPIO17 (Pin 11) | Rotary pulse A |
+| DT (B) | GPIO27 (Pin 13) | Rotary pulse B |
+| SW | GPIO22 (Pin 15) | Push button |
+
+No pin conflicts exist between the display and encoder.
+
 The display wiring has already been validated.
 
 Do not recommend alternate wiring unless specifically asked.

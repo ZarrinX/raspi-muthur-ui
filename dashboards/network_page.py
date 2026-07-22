@@ -1,45 +1,39 @@
 """
-System telemetry dashboard for the 240×320 ILI9341 display.
+Network info page for the 240×320 ILI9341 display.
 
 Layout (portrait, 240×320):
     ┌──────────────────────────┐  y=0
-    │           TARS          │  header (28px)
+    │  NETWORK           2/2  │  header (28px)
     ├──────────────────────────┤  y=28
-    │  CPU            25.4%   │  row (52px each × 5)
+    │  HOST   tars             │  row (52px each × 5)
     ├──────────────────────────┤
-    │  RAM            27.5%   │
+    │  RX     1.23 GB          │
     ├──────────────────────────┤
-    │  DISK           20.7%   │
+    │  TX     456.7 MB         │
     ├──────────────────────────┤
-    │  TEMP           45.2C   │
+    │  SSH    2                │
     ├──────────────────────────┤
-    │  IP    10.64.32.100     │
+    │  TOP    python3          │
     ├──────────────────────────┤  y=288
-    │   2026-06-04  12:34:56  │  footer (32px)
+    │   2026-07-22  12:34:56  │  footer (32px)
     └──────────────────────────┘  y=320
-
-Rendering strategy:
-    Full-screen redraw every tick. At 240×320 and 16 MHz SPI this is
-    under 100 ms and eliminates coordinate confusion with rotation=180.
-
-Palette sourced from muthur-ui/packages/ui/src/styles/global.css.
 """
 
 from __future__ import annotations
 
 import datetime
 import os
+import socket
 from typing import TYPE_CHECKING
 
+import psutil
 from PIL import Image, ImageDraw, ImageFont
-
-from utils.telemetry import cpu_percent, cpu_temp, disk_percent, ip_address, ram_percent
 
 if TYPE_CHECKING:
     import adafruit_rgb_display.ili9341 as ili9341_type
 
 # ---------------------------------------------------------------------------
-# Palette — TARS blue variant
+# Palette — shared with system.py
 # ---------------------------------------------------------------------------
 _BG             = (  4,   8,  18)
 _SURFACE        = (  7,  14,  30)
@@ -49,8 +43,6 @@ _TEXT_PRIMARY   = (200, 215, 240)
 _TEXT_SECONDARY = ( 90, 140, 210)
 _TEXT_DIM       = ( 36,  60, 100)
 _ACCENT         = ( 80, 160, 255)
-_WARNING        = (232, 200,  74)
-_ERROR          = (212,  80,  80)
 
 # ---------------------------------------------------------------------------
 # Layout constants (240×320 portrait)
@@ -67,8 +59,7 @@ _LABEL_X     = _PAD
 _VALUE_RIGHT = _W - _PAD
 
 # ---------------------------------------------------------------------------
-# Font loading
-# Preference: user-supplied TTF → system monospace → Pillow built-in
+# Font loading (mirrors system.py)
 # ---------------------------------------------------------------------------
 _FONT_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "assets", "fonts")
@@ -105,9 +96,66 @@ _FONT_FOOTER = _load_font(11)
 # ---------------------------------------------------------------------------
 # Module state
 # ---------------------------------------------------------------------------
-_image:  Image.Image | None = None
-_draw:   ImageDraw.ImageDraw | None = None
-_display = None
+_image:   Image.Image | None = None
+_draw:    ImageDraw.ImageDraw | None = None
+_display  = None
+
+
+# ---------------------------------------------------------------------------
+# Telemetry helpers
+# ---------------------------------------------------------------------------
+
+def _hostname() -> str:
+    return socket.gethostname()
+
+
+def _format_bytes(b: int) -> str:
+    """Format a byte count as a human-readable string."""
+    if b >= 1_073_741_824:
+        return f"{b / 1_073_741_824:.2f} GB"
+    if b >= 1_048_576:
+        return f"{b / 1_048_576:.1f} MB"
+    if b >= 1024:
+        return f"{b / 1024:.0f} KB"
+    return f"{b} B"
+
+
+def _net_bytes() -> tuple[int, int]:
+    """Return (bytes_recv, bytes_sent) cumulative since boot."""
+    counters = psutil.net_io_counters()
+    if counters is None:
+        return 0, 0
+    return counters.bytes_recv, counters.bytes_sent
+
+
+def _ssh_sessions() -> int:
+    """Count established inbound SSH connections (local port 22)."""
+    try:
+        return sum(
+            1
+            for c in psutil.net_connections(kind="tcp")
+            if c.laddr.port == 22 and c.status == psutil.CONN_ESTABLISHED
+        )
+    except (psutil.AccessDenied, AttributeError):
+        return -1  # permission denied — show as unknown
+
+
+def _top_process() -> str:
+    """Return the name of the process with the highest CPU usage."""
+    try:
+        procs = [
+            p.info
+            for p in psutil.process_iter(["name", "cpu_percent"])
+            if p.info["cpu_percent"] is not None
+        ]
+        if not procs:
+            return "N/A"
+        top = max(procs, key=lambda p: p["cpu_percent"])
+        name = top["name"] or "?"
+        # Truncate to fit the value column
+        return name[:14]
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return "N/A"
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +184,7 @@ def update(page_info: tuple[int, int] = (1, 1)) -> None:
 # Internal rendering
 # ---------------------------------------------------------------------------
 
-def _render(page_info: tuple[int, int] = (1, 1)) -> None:
+def _render(page_info: tuple[int, int]) -> None:
     d = _draw
 
     # Clear canvas
@@ -145,7 +193,7 @@ def _render(page_info: tuple[int, int] = (1, 1)) -> None:
     # Header
     d.rectangle([(0, 0), (_W - 1, _HEADER_H - 1)], fill=_SURFACE)
     d.line([(0, _HEADER_H - 1), (_W - 1, _HEADER_H - 1)], fill=_BORDER_BRIGHT, width=1)
-    _draw_centered(d, "T.A.R.S.", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
+    _draw_centered(d, "NETWORK", 0, _HEADER_H, _FONT_HEADER, _ACCENT)
 
     # Page indicator (right-aligned in header)
     page_str = f"{page_info[0]}/{page_info[1]}"
@@ -155,23 +203,19 @@ def _render(page_info: tuple[int, int] = (1, 1)) -> None:
     d.text((px, py), page_str, font=_FONT_FOOTER, fill=_TEXT_DIM)
 
     # Telemetry rows
-    temp_c   = cpu_temp()
-    temp_f   = (temp_c * 9 / 5 + 32) if temp_c is not None else None
-    cpu_val  = cpu_percent()
-    ram_val  = ram_percent()
-    disk_val = disk_percent()
+    rx_b, tx_b  = _net_bytes()
+    ssh_count   = _ssh_sessions()
+    ssh_str     = str(ssh_count) if ssh_count >= 0 else "?"
+
     rows = [
-        ("CPU",  f"{cpu_val:.1f}%",                                "cpu",  cpu_val),
-        ("RAM",  f"{ram_val:.1f}%",                                "ram",  ram_val),
-        ("DISK", f"{disk_val:.1f}%",                               "disk", None),
-        ("TEMP", f"{temp_f:.1f}F" if temp_f is not None else "N/A", "temp", None),
-        ("IP",   ip_address(),                                     "ip",   None),
+        ("HOST", _hostname()),
+        ("RX",   _format_bytes(rx_b)),
+        ("TX",   _format_bytes(tx_b)),
+        ("SSH",  ssh_str),
+        ("TOP",  _top_process()),
     ]
 
-    _BAR_H    = 4   # bar graph height in pixels
-    _BAR_PAD  = 5   # gap between bottom of text and top of bar
-
-    for i, (label, value, key, bar_pct) in enumerate(rows):
+    for i, (label, value) in enumerate(rows):
         row_y  = _HEADER_H + i * _ROW_H
         row_y2 = row_y + _ROW_H
 
@@ -182,38 +226,19 @@ def _render(page_info: tuple[int, int] = (1, 1)) -> None:
         # Row separator
         d.line([(0, row_y2 - 1), (_W - 1, row_y2 - 1)], fill=_BORDER, width=1)
 
-        # Vertical text area — shift up when bar is present
-        text_h    = _ROW_H - (_BAR_H + _BAR_PAD + 4 if bar_pct is not None else 0)
-
-        # Label — left edge, vertically centred in text area
+        # Label — left, vertically centred
         lbbox = d.textbbox((0, 0), label, font=_FONT_LABEL)
         lh    = lbbox[3] - lbbox[1]
-        ly    = row_y + (text_h - lh) // 2
+        ly    = row_y + (_ROW_H - lh) // 2
         d.text((_LABEL_X, ly), label, font=_FONT_LABEL, fill=_TEXT_SECONDARY)
 
-        # Value — right-aligned, vertically centred in text area
+        # Value — right-aligned, vertically centred
         vbbox = d.textbbox((0, 0), value, font=_FONT_VALUE)
         vw    = vbbox[2] - vbbox[0]
         vh    = vbbox[3] - vbbox[1]
         vx    = _VALUE_RIGHT - vw
-        vy    = row_y + (text_h - vh) // 2
-        d.text((vx, vy), value, font=_FONT_VALUE, fill=_value_color(key, value))
-
-        # Bar graph (CPU and RAM only)
-        if bar_pct is not None:
-            bar_y      = row_y2 - _BAR_H - 4
-            bar_x1     = _LABEL_X
-            bar_x2     = _VALUE_RIGHT
-            bar_width  = bar_x2 - bar_x1
-            fill_width = int(bar_width * min(bar_pct, 100.0) / 100.0)
-            # Track
-            d.rectangle([(bar_x1, bar_y), (bar_x2, bar_y + _BAR_H - 1)], fill=_BORDER)
-            # Fill
-            if fill_width > 0:
-                d.rectangle(
-                    [(bar_x1, bar_y), (bar_x1 + fill_width, bar_y + _BAR_H - 1)],
-                    fill=_value_color(key, value),
-                )
+        vy    = row_y + (_ROW_H - vh) // 2
+        d.text((vx, vy), value, font=_FONT_VALUE, fill=_TEXT_PRIMARY)
 
     # Footer
     footer_y = _HEADER_H + _ROW_COUNT * _ROW_H
@@ -237,26 +262,3 @@ def _draw_centered(
     x    = (_W - tw) // 2
     y    = y1 + (y2 - y1 - th) // 2
     d.text((x, y), text, font=font, fill=color)
-
-
-def _value_color(key: str, text: str) -> tuple[int, int, int]:
-    val = _parse_float(text)
-    if key in ("cpu", "ram", "disk") and val is not None:
-        if val >= 90:
-            return _ERROR
-        if val >= 75:
-            return _WARNING
-    if key == "temp" and val is not None:
-        # thresholds in Fahrenheit
-        if val >= 176:
-            return _ERROR
-        if val >= 149:
-            return _WARNING
-    return _TEXT_PRIMARY
-
-
-def _parse_float(text: str) -> float | None:
-    try:
-        return float(text.strip().rstrip("%C"))
-    except ValueError:
-        return None
