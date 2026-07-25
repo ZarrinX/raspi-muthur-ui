@@ -200,7 +200,7 @@ def _render(page_info: tuple[int, int]) -> None:
     pbbox = d.textbbox((0, 0), page_str, font=_FONT_FOOTER)
     px = _W - _PAD - (pbbox[2] - pbbox[0])
     py = (_HEADER_H - (pbbox[3] - pbbox[1])) // 2
-    d.text((px, py), page_str, font=_FONT_FOOTER, fill=_TEXT_DIM)
+    d.text((px, py), page_str, font=_FONT_FOOTER, fill=(100, 180, 255))
 
     # Telemetry rows
     rx_b, tx_b  = _net_bytes()
