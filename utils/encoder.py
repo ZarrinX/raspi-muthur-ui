@@ -30,6 +30,7 @@ class KY040:
 
         enc = KY040()
         delta = enc.pop_delta()   # +N = CW steps, -N = CCW steps since last call
+        pressed = enc.pop_press() # True if button was pressed since last call
     """
 
     CLK_GPIO = 17
@@ -38,6 +39,7 @@ class KY040:
 
     def __init__(self) -> None:
         self._delta   = 0
+        self._pressed = False
         self._lock    = threading.Lock()
         self._enc     = None  # type: ignore[assignment]
         self._btn: Button | None = None
@@ -47,10 +49,11 @@ class KY040:
             return
 
         try:
-            self._enc = RotaryEncoder(self.CLK_GPIO, self.DT_GPIO)
+            self._enc = RotaryEncoder(self.CLK_GPIO, self.DT_GPIO, half_step=True)
             self._enc.when_rotated_clockwise        = self._on_cw
             self._enc.when_rotated_counter_clockwise = self._on_ccw
             self._btn = Button(self.SW_GPIO, pull_up=True, bounce_time=0.05)
+            self._btn.when_pressed = self._on_press
             print("[encoder] KY-040 ready.")
         except Exception as exc:
             print(f"[encoder] GPIO init failed ({exc}) — encoder disabled.")
@@ -69,6 +72,10 @@ class KY040:
         with self._lock:
             self._delta -= 1
 
+    def _on_press(self) -> None:
+        with self._lock:
+            self._pressed = True
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -83,6 +90,13 @@ class KY040:
             d = self._delta
             self._delta = 0
         return d
+
+    def pop_press(self) -> bool:
+        """Return True if the button was pressed since the last call, then reset."""
+        with self._lock:
+            p = self._pressed
+            self._pressed = False
+        return p
 
     def close(self) -> None:
         """Release GPIO resources."""

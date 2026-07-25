@@ -54,6 +54,11 @@ def main() -> None:
     while True:
         try:
             if encoder is not None:
+                if encoder.pop_press():
+                    current_page = (current_page + 1) % _TOTAL_PAGES
+                    print(f"Page → {current_page + 1}/{_TOTAL_PAGES} (button)")
+                    _ensure_init(current_page)
+
                 delta = encoder.pop_delta()
                 if delta != 0:
                     direction = 1 if delta > 0 else -1

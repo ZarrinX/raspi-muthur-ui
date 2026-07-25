@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 User=zrice
 WorkingDirectory=/opt/raspi-muthur-ui
+Environment=GPIOZERO_PIN_FACTORY=lgpio
 ExecStart=/opt/raspi-muthur-ui/venv/bin/python main.py
 Restart=always
 RestartSec=5
