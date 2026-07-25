@@ -43,7 +43,7 @@ pipeline {
                     sh """
                         ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST} '
                             cd ${PI_DEPLOY_PATH} &&
-                            python3 -m venv venv &&
+                            python3 -m venv --system-site-packages --clear venv &&
                             venv/bin/pip install --upgrade pip --quiet &&
                             venv/bin/pip install -r requirements.txt --quiet
                         '
