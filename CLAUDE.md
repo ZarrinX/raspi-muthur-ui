@@ -67,9 +67,9 @@ Assume:
 |-------------|----------------|-------|
 | VCC (+) | 3.3V | |
 | GND | GND | |
-| CLK (A) | GPIO17 (Pin 11) | Rotary pulse A |
-| DT (B) | GPIO27 (Pin 13) | Rotary pulse B |
-| SW | GPIO22 (Pin 15) | Push button |
+| CLK (A) | GPIO23 (Pin 16) | Rotary pulse A |
+| DT (B) | GPIO26 (Pin 37) | Rotary pulse B |
+| SW | GPIO16 (Pin 36) | Push button |
 
 No pin conflicts exist between the display and encoder.
 

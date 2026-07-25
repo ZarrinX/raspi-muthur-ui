@@ -33,9 +33,9 @@
 |-------------|----------------|-------|
 | VCC (+) | 3.3V | |
 | GND | GND | |
-| CLK (A) | GPIO17 (Pin 11) | Rotary pulse A |
-| DT (B) | GPIO27 (Pin 13) | Rotary pulse B |
-| SW | GPIO22 (Pin 15) | Push button |
+| CLK (A) | GPIO23 (Pin 16) | Rotary pulse A |
+| DT (B) | GPIO26 (Pin 37) | Rotary pulse B |
+| SW | GPIO16 (Pin 36) | Push button |
 
 ### Pin Conflict Check
 
@@ -49,7 +49,7 @@ All encoder pins are separate from the ILI9341 display:
 | GPIO25 | 22 | DC |
 | GPIO24 | 18 | RST |
 
-No conflicts with GPIO17 (11), GPIO27 (13), or GPIO22 (15).
+No conflicts with GPIO23 (16), GPIO26 (37), or GPIO16 (36).
 
 ---
 

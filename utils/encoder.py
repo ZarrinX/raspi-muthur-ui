@@ -10,9 +10,9 @@ Automatically tries gpiochip4 (Pi 5) then gpiochip0 (Pi 4 and earlier).
 Falls back to a no-op stub when lgpio is unavailable (e.g. dev machines).
 
 Wiring (verified):
-    CLK (A) → GPIO17 (Pin 11)
-    DT  (B) → GPIO27 (Pin 13)
-    SW      → GPIO22 (Pin 15)
+    CLK (A) → GPIO23 (Pin 16)
+    DT  (B) → GPIO26 (Pin 37)
+    SW      → GPIO16 (Pin 36)
 """
 
 from __future__ import annotations
@@ -36,9 +36,9 @@ class KY040:
         pressed = enc.pop_press() # True if button was pressed since last call
     """
 
-    CLK_GPIO = 17
-    DT_GPIO  = 27
-    SW_GPIO  = 22
+    CLK_GPIO = 23
+    DT_GPIO  = 26
+    SW_GPIO  = 16
 
     # Debounce in microseconds — reduces spurious edges from mechanical contacts
     _DEBOUNCE_US = 2_000
@@ -57,6 +57,12 @@ class KY040:
         for chip in (4, 0):  # Pi 5 = gpiochip4, Pi 4 = gpiochip0
             try:
                 h = lgpio.gpiochip_open(chip)
+                # Free pins first — a previous crashed run may have left them claimed
+                for pin in (self.CLK_GPIO, self.DT_GPIO, self.SW_GPIO):
+                    try:
+                        lgpio.gpio_free(h, pin)
+                    except Exception:
+                        pass
                 lgpio.gpio_claim_input(h, self.CLK_GPIO, lgpio.SET_PULL_UP)
                 lgpio.gpio_claim_input(h, self.DT_GPIO,  lgpio.SET_PULL_UP)
                 lgpio.gpio_claim_input(h, self.SW_GPIO,  lgpio.SET_PULL_UP)
