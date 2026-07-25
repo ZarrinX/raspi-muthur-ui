@@ -1,9 +1,13 @@
 """
 KY-040 rotary encoder wrapper.
 
-Uses gpiozero's RotaryEncoder for quadrature decoding via callbacks so the
-main loop never needs to poll GPIOs directly.  Falls back to a no-op stub
-when gpiozero is unavailable (e.g. dev machines without GPIO hardware).
+Uses lgpio directly for reliable edge-triggered callbacks on Raspberry Pi 5.
+gpiozero's RotaryEncoder has known issues with the lgpio backend on Pi 5 —
+the when_rotated_* callbacks can fail to fire even though initialisation
+succeeds.  Using lgpio directly bypasses this entirely.
+
+Automatically tries gpiochip4 (Pi 5) then gpiochip0 (Pi 4 and earlier).
+Falls back to a no-op stub when lgpio is unavailable (e.g. dev machines).
 
 Wiring (verified):
     CLK (A) → GPIO17 (Pin 11)
@@ -16,15 +20,14 @@ from __future__ import annotations
 import threading
 
 try:
-    from gpiozero import Button, RotaryEncoder
-
-    _GPIOZERO_AVAILABLE = True
+    import lgpio
+    _LGPIO_AVAILABLE = True
 except ImportError:
-    _GPIOZERO_AVAILABLE = False
+    _LGPIO_AVAILABLE = False
 
 
 class KY040:
-    """Thread-safe KY-040 rotary encoder.
+    """Thread-safe KY-040 rotary encoder using lgpio directly.
 
     Usage::
 
@@ -37,42 +40,57 @@ class KY040:
     DT_GPIO  = 27
     SW_GPIO  = 22
 
+    # Debounce in microseconds — reduces spurious edges from mechanical contacts
+    _DEBOUNCE_US = 2_000
+
     def __init__(self) -> None:
         self._delta   = 0
         self._pressed = False
         self._lock    = threading.Lock()
-        self._enc     = None  # type: ignore[assignment]
-        self._btn: Button | None = None
+        self._h       = None
+        self._cbs: list = []
 
-        if not _GPIOZERO_AVAILABLE:
-            print("[encoder] gpiozero not available — encoder disabled.")
+        if not _LGPIO_AVAILABLE:
+            print("[encoder] lgpio not available — encoder disabled.")
             return
 
-        try:
-            self._enc = RotaryEncoder(self.CLK_GPIO, self.DT_GPIO, half_step=True)
-            self._enc.when_rotated_clockwise        = self._on_cw
-            self._enc.when_rotated_counter_clockwise = self._on_ccw
-            self._btn = Button(self.SW_GPIO, pull_up=True, bounce_time=0.05)
-            self._btn.when_pressed = self._on_press
-            print("[encoder] KY-040 ready.")
-        except Exception as exc:
-            print(f"[encoder] GPIO init failed ({exc}) — encoder disabled.")
-            self._enc = None
-            self._btn = None
+        for chip in (4, 0):  # Pi 5 = gpiochip4, Pi 4 = gpiochip0
+            try:
+                h = lgpio.gpiochip_open(chip)
+                lgpio.gpio_claim_input(h, self.CLK_GPIO, lgpio.SET_PULL_UP)
+                lgpio.gpio_claim_input(h, self.DT_GPIO,  lgpio.SET_PULL_UP)
+                lgpio.gpio_claim_input(h, self.SW_GPIO,  lgpio.SET_PULL_UP)
+                lgpio.gpio_set_debounce_micros(h, self.CLK_GPIO, self._DEBOUNCE_US)
+                lgpio.gpio_set_debounce_micros(h, self.SW_GPIO,  self._DEBOUNCE_US)
+                self._cbs.append(
+                    lgpio.callback(h, self.CLK_GPIO, lgpio.FALLING_EDGE, self._on_clk)
+                )
+                self._cbs.append(
+                    lgpio.callback(h, self.SW_GPIO,  lgpio.FALLING_EDGE, self._on_sw)
+                )
+                self._h = h
+                print(f"[encoder] KY-040 ready (lgpio gpiochip{chip}).")
+                return
+            except Exception as exc:
+                print(f"[encoder] gpiochip{chip} failed ({exc}).")
+
+        print("[encoder] All GPIO chips failed — encoder disabled.")
 
     # ------------------------------------------------------------------
-    # Callbacks (called from gpiozero background thread)
+    # Callbacks (called from lgpio background thread)
+    # Signature: func(chip, gpio, level, tick)
     # ------------------------------------------------------------------
 
-    def _on_cw(self) -> None:
+    def _on_clk(self, chip: int, gpio: int, level: int, tick: int) -> None:
+        # CLK fell — read DT to determine direction
+        dt = lgpio.gpio_read(self._h, self.DT_GPIO)
         with self._lock:
-            self._delta += 1
+            if dt == 1:
+                self._delta += 1   # clockwise
+            else:
+                self._delta -= 1   # counter-clockwise
 
-    def _on_ccw(self) -> None:
-        with self._lock:
-            self._delta -= 1
-
-    def _on_press(self) -> None:
+    def _on_sw(self, chip: int, gpio: int, level: int, tick: int) -> None:
         with self._lock:
             self._pressed = True
 
@@ -100,7 +118,12 @@ class KY040:
 
     def close(self) -> None:
         """Release GPIO resources."""
-        if self._enc is not None:
-            self._enc.close()
-        if self._btn is not None:
-            self._btn.close()
+        for cb in self._cbs:
+            try:
+                cb.cancel()
+            except Exception:
+                pass
+        self._cbs.clear()
+        if self._h is not None:
+            lgpio.gpiochip_close(self._h)
+            self._h = None
