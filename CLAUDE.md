@@ -297,10 +297,10 @@ Do not suggest manual deployment steps as a permanent solution. All changes that
 
 ## Deploy targets
 
-| Branch | Pi | Host | Jenkinsfile |
-|--------|----|------|-------------|
-| `main` | Pi 1 | 10.64.32.100 | `Jenkinsfile` |
-| `TARS` | Pi 2 | 10.64.32.101 | `Jenkinsfile.tars` → renamed to `Jenkinsfile` on that branch |
+| Branch | Name | Model | Host | Jenkinsfile |
+|--------|------|-------|------|-------------|
+| `main` | MUTHUR | Raspberry Pi 5 | 10.64.32.100 | `Jenkinsfile` |
+| `TARS` | TARS | Raspberry Pi 4 | 10.64.32.101 | `Jenkinsfile.tars` → renamed to `Jenkinsfile` on that branch |
 
 Both Pis use:
 
