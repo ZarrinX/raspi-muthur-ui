@@ -1,13 +1,13 @@
 """
 KY-040 rotary encoder wrapper.
 
-Uses lgpio directly for reliable edge-triggered callbacks on Raspberry Pi 5.
-gpiozero's RotaryEncoder has known issues with the lgpio backend on Pi 5 —
-the when_rotated_* callbacks can fail to fire even though initialisation
-succeeds.  Using lgpio directly bypasses this entirely.
+Uses lgpio directly for reliable edge-triggered callbacks on Raspberry Pi 4.
+gpiozero's RotaryEncoder has known issues with the lgpio backend — the
+when_rotated_* callbacks can fail to fire even though initialisation succeeds.
 
-Automatically tries gpiochip4 (Pi 5) then gpiochip0 (Pi 4 and earlier).
-Falls back to a no-op stub when lgpio is unavailable (e.g. dev machines).
+TARS is a Pi 4. gpiochip0 is the main BCM GPIO header.
+gpiochip4 also exists on Pi 4 (internal hardware) and must NOT be used —
+claiming pins on it succeeds silently but they are not the physical GPIO pins.
 
 Wiring (verified):
     CLK (A) → GPIO23 (Pin 16)
@@ -40,9 +40,6 @@ class KY040:
     DT_GPIO  = 26
     SW_GPIO  = 16
 
-    # Debounce in microseconds — reduces spurious edges from mechanical contacts
-    _DEBOUNCE_US = 2_000
-
     def __init__(self) -> None:
         self._delta   = 0
         self._pressed = False
@@ -54,33 +51,29 @@ class KY040:
             print("[encoder] lgpio not available — encoder disabled.")
             return
 
-        for chip in (4, 0):  # Pi 5 = gpiochip4, Pi 4 = gpiochip0
-            try:
-                h = lgpio.gpiochip_open(chip)
-                # Free pins first — a previous crashed run may have left them claimed
-                for pin in (self.CLK_GPIO, self.DT_GPIO, self.SW_GPIO):
-                    try:
-                        lgpio.gpio_free(h, pin)
-                    except Exception:
-                        pass
-                lgpio.gpio_claim_input(h, self.CLK_GPIO, lgpio.SET_PULL_UP)
-                lgpio.gpio_claim_input(h, self.DT_GPIO,  lgpio.SET_PULL_UP)
-                lgpio.gpio_claim_input(h, self.SW_GPIO,  lgpio.SET_PULL_UP)
-                lgpio.gpio_set_debounce_micros(h, self.CLK_GPIO, self._DEBOUNCE_US)
-                lgpio.gpio_set_debounce_micros(h, self.SW_GPIO,  self._DEBOUNCE_US)
-                self._cbs.append(
-                    lgpio.callback(h, self.CLK_GPIO, lgpio.FALLING_EDGE, self._on_clk)
-                )
-                self._cbs.append(
-                    lgpio.callback(h, self.SW_GPIO,  lgpio.FALLING_EDGE, self._on_sw)
-                )
-                self._h = h
-                print(f"[encoder] KY-040 ready (lgpio gpiochip{chip}).")
-                return
-            except Exception as exc:
-                print(f"[encoder] gpiochip{chip} failed ({exc}).")
-
-        print("[encoder] All GPIO chips failed — encoder disabled.")
+        # TARS is a Pi 4 — gpiochip0 is the main BCM GPIO header.
+        # gpiochip4 also exists on Pi 4 (internal) and must NOT be used.
+        try:
+            h = lgpio.gpiochip_open(0)
+            # Free pins first — a previous crashed run may have left them claimed
+            for pin in (self.CLK_GPIO, self.DT_GPIO, self.SW_GPIO):
+                try:
+                    lgpio.gpio_free(h, pin)
+                except Exception:
+                    pass
+            lgpio.gpio_claim_input(h, self.CLK_GPIO, lgpio.SET_PULL_UP)
+            lgpio.gpio_claim_input(h, self.DT_GPIO,  lgpio.SET_PULL_UP)
+            lgpio.gpio_claim_input(h, self.SW_GPIO,  lgpio.SET_PULL_UP)
+            self._cbs.append(
+                lgpio.callback(h, self.CLK_GPIO, lgpio.FALLING_EDGE, self._on_clk)
+            )
+            self._cbs.append(
+                lgpio.callback(h, self.SW_GPIO,  lgpio.FALLING_EDGE, self._on_sw)
+            )
+            self._h = h
+            print("[encoder] KY-040 ready (lgpio gpiochip0).")
+        except Exception as exc:
+            print(f"[encoder] GPIO init failed ({exc}) — encoder disabled.")
 
     # ------------------------------------------------------------------
     # Callbacks (called from lgpio background thread)
