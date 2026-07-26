@@ -22,7 +22,8 @@ import dashboards.system as system_dashboard
 from displays.ili9341 import get_display
 from utils.encoder import KY040
 
-TICK_INTERVAL_S = 2.0
+TICK_INTERVAL_S   = 2.0   # display refresh rate
+ENCODER_POLL_S    = 0.1   # encoder check rate (~10 Hz)
 
 _PAGES = [system_dashboard, network_dashboard]
 _TOTAL_PAGES = len(_PAGES)
@@ -48,25 +49,36 @@ def main() -> None:
             _PAGES[page_idx].init(display, page_info=(page_idx + 1, _TOTAL_PAGES))
             _initialised.add(page_idx)
 
+    def _change_page(new_page: int, reason: str) -> None:
+        nonlocal current_page
+        current_page = new_page
+        print(f"Page → {current_page + 1}/{_TOTAL_PAGES} ({reason})")
+        _ensure_init(current_page)
+        _PAGES[current_page].update(page_info=(current_page + 1, _TOTAL_PAGES))
+
     _ensure_init(current_page)
-    print(f"Static layout drawn. Ticking every {TICK_INTERVAL_S}s.")
+    print(f"Static layout drawn. Display refresh every {TICK_INTERVAL_S}s, encoder polled every {ENCODER_POLL_S}s.")
+
+    last_tick = time.monotonic()
 
     while True:
         try:
+            now = time.monotonic()
+
+            # Check encoder every ENCODER_POLL_S
             if encoder is not None:
                 if encoder.pop_press():
-                    current_page = (current_page + 1) % _TOTAL_PAGES
-                    print(f"Page → {current_page + 1}/{_TOTAL_PAGES} (button)")
-                    _ensure_init(current_page)
+                    _change_page((current_page + 1) % _TOTAL_PAGES, "button")
 
                 delta = encoder.pop_delta()
                 if delta != 0:
                     direction = 1 if delta > 0 else -1
-                    current_page = (current_page + direction) % _TOTAL_PAGES
-                    print(f"Page → {current_page + 1}/{_TOTAL_PAGES}")
-                    _ensure_init(current_page)
+                    _change_page((current_page + direction) % _TOTAL_PAGES, "knob")
 
-            _PAGES[current_page].update(page_info=(current_page + 1, _TOTAL_PAGES))
+            # Refresh display at TICK_INTERVAL_S
+            if now - last_tick >= TICK_INTERVAL_S:
+                _PAGES[current_page].update(page_info=(current_page + 1, _TOTAL_PAGES))
+                last_tick = now
 
         except KeyboardInterrupt:
             print("\nShutting down.")
@@ -76,7 +88,7 @@ def main() -> None:
         except Exception as exc:
             print(f"[ERROR] {exc}", file=sys.stderr)
 
-        time.sleep(TICK_INTERVAL_S)
+        time.sleep(ENCODER_POLL_S)
 
 
 if __name__ == "__main__":
